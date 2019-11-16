@@ -5,9 +5,6 @@
 // Test code
 // Organize/document code
 
-//Pin 2 is FrontBack INTerrupt from encoders
-//Pin 3 is LeftRight Interrupt from encoders
-
 // Assign motors to pins
 #define topPwm 7
 #define topGround 8
@@ -17,6 +14,7 @@
 #define leftGround 4
 #define rightPwm 5
 #define rightGround 6
+
 
 //    ------| TOP |------
 //   |                   |
@@ -68,6 +66,21 @@ void addTickRight() {
   rightTicks++;
 }
 
+//TODO - Add stopping of the mvoing  button pusher.
+//ESTOP - Emergancy Stop. Stops the whole bot then forces into a do nothing loop. Must power cycle to restart.
+void ESTOP(){
+  digitalWrite(topPwm);
+  digitalWrite(topGround);
+  digitalWrite(bottomPwm);
+  digitalWrite(bottomGround);
+  digitalWrite(leftPwm);
+  digitalWrite(leftGround);
+  digitalWrite(rightPwm);
+  digitalWrite(rightGround);
+  
+  while(true){};
+}
+
 // Interrupt pins: 2, 3, 18, 19, 20, 21
 void setup() {
   // Reset the gyro
@@ -86,10 +99,12 @@ void setup() {
   pinMode(rightPwm, OUTPUT);
   pinMode(rightGround, OUTPUT);
   Serial.begin(9600);
+  attachInterrupt(digitalPinToInterrupt(2), ESTOP, RISING);
   attachInterrupt(digitalPinToInterrupt(18), addTickTop, RISING);
   attachInterrupt(digitalPinToInterrupt(19), addTickBottom, RISING);
   attachInterrupt(digitalPinToInterrupt(20), addTickLeft, RISING);
   attachInterrupt(digitalPinToInterrupt(21), addTickRight, RISING);
+
 }
 
 void loop() {
@@ -180,7 +195,7 @@ void resetEncoders() {
   rightTicks = 0;
 }
 
-// Make sure it can change direction
+// Make sure it can change direction -- This is a servo only needs 1 pin to control 
 void findLight(boolean pin, boolean ground) {
   digitalWrite(11, pin);
   digitalWrite(12, ground);
@@ -211,6 +226,7 @@ boolean switchPressed() {
   }
 }
 
+//Use servo library as analogWrite can't control servos? (Two angles one for in one for out?)
 void hitLight() {
   analogWrite(13, 255);
   delay(1000);
