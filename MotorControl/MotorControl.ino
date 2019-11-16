@@ -60,6 +60,11 @@ void addTickRight() {
 void setup() {
   // Reset the gyro
   // Reset the encoders
+  topTicks = 0;
+  bottomTicks = 0;
+  leftTicks = 0;
+  rightTicks = 0;
+  
   pinMode(6, OUTPUT);
   pinMode(7, OUTPUT);
   pinMode(8,OUTPUT);
@@ -72,12 +77,10 @@ void setup() {
 }
 
 void loop() {
-  topTicks = 0;
-  bottomTicks = 0;
-  leftTicks = 0;
-  rightTicks = 0;
-  moveTo(50, 50);
+  moveTo(0, 133.985);
   hailMother();
+  // Move robot to climb position
+  climb();
 //  moveForwardBackwards(1024,100);
 //  delay(1000);
 //  moveLeftRight(1024,100);
@@ -136,13 +139,13 @@ void moveTo(double x, double y) {
   if (initXDistance > 0 && initYDistance > 0) {
     while (xDistanceLeft > 0.5 && yDistanceLeft > 0.5) {
       // Top
-      moveMotor(7, 8, (xDistanceLeft / initXDistance) * motorFactor);
+      moveThingAnalog(7, 8, (xDistanceLeft / initXDistance) * motorFactor);
       // Bottom
-      moveMotor(9, 10, (xDistanceLeft / initXDistance) * motorFactor);
+      moveThingAnalog(9, 10, (xDistanceLeft / initXDistance) * motorFactor);
       // Left
-      moveMotor(3, 4, yDistanceLeft / initYDistance);
+      moveThingAnalog(3, 4, yDistanceLeft / initYDistance);
       // Right
-      moveMotor(5, 6, yDistanceLeft / initYDistance);
+      moveThingAnalog(5, 6, yDistanceLeft / initYDistance);
       xDistanceLeft = x - getXDistance();
       yDistanceLeft = y - getYDistance();
     }
@@ -150,13 +153,22 @@ void moveTo(double x, double y) {
 }
 
 // Move a motor at a specified velocity from -1 to 1. Negative velocity indicates backwards movement. The pwmPin should be wired positively and the ground should be wired negatively.
-void moveMotor(int pwmPin, int groundPin, double velocity) {
+void moveThingAnalog(int pwmPin, int groundPin, double velocity) {
   if (velocity > 0) {
     analogWrite(pwmPin, (int)(abs(velocity) * 255));
     digitalWrite(groundPin, LOW);   
   }
   else if (velocity < 0) {
     analogWrite(groundPin, (int)(abs(velocity) * 255));
+    digitalWrite(pwmPin, LOW);
+  }
+}
+
+void moveThingDigital(int pwmPin, int groundPin, bool direction) {
+  if (direction) {
+    digitalWrite(pwmPin, HIGH);
+  }
+  else {
     digitalWrite(pwmPin, LOW);
   }
 }
@@ -181,18 +193,41 @@ void moveLeftRight(int dist,int dir) { //Distance is in mm Direction is positve 
   digitalWrite(8,LOW);
 }
 
-void findLight() {
+// Make sure it can change direction
+void findLight(boolean pin, boolean ground) {
+  digitalWrite(11, pin);
+  digitalWrite(12, ground);
   while (!isLit()) {
-    analogWrite(11, 255);
-    delay(1000);
+    if (switchPressed()) {
+      ground = switchValue(ground);
+      pin = switchValue(pin);
+    }
+    findLight(pin, ground);
   }
-  analogWrite(11, 0);
+}
+
+boolean switchValue(boolean pin) {
+  if (pin == 1) {
+    return 0;
+  }
+  else {
+    return 1;
+  }
+}
+
+boolean switchPressed() {
+  if (digitalRead(14)) {
+    return true;
+  }
+  else {
+    return false;
+  }
 }
 
 void hitLight() {
-  analogWrite(12, 255);
+  analogWrite(13, 255);
   delay(1000);
-  analogWrite(12, 0);
+  analogWrite(13, 0);
 }
 
 bool isLit() {
@@ -206,10 +241,14 @@ bool isLit() {
 void hailMother() {
   int hit = 0;
   while (hit < 6) {
-    findLight();
+    findLight(HIGH, LOW);
     hitLight();
     hit++;
   }
+}
+
+void climb() {
+//  digitalWrite(HIGH);
 }
 
 // Modify and test this
