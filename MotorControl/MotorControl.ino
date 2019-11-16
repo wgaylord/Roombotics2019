@@ -1,16 +1,22 @@
 #include <Arduino.h>;
 #include <digitalWriteFast.h>
 
+// TODO
+// Test code
+// Organize/document code
+
 //Pin 2 is FrontBack INTerrupt from encoders
 //Pin 3 is LeftRight Interrupt from encoders
-//Pin 6 and 7 are front back control
-//Pin 8 and 9 are Left right control
 
 // Assign motors to pins
-//#define top 6
-//#define bottom 7
-//#define left 8
-//#define right 9
+#define topPwm 7
+#define topGround 8
+#define bottomPwm 9
+#define bottomGround 10
+#define leftPwm 3
+#define leftGround 4
+#define rightPwm 5
+#define rightGround 6
 
 //    ------| TOP |------
 //   |                   |
@@ -30,6 +36,11 @@ volatile int rightTicks = 0;
 const double yDimension = 42.545;
 const double xDimension = 60.80125;
 
+// FIX THESE
+// Distance between wheels (in cm)
+const double xDistWheels = 100;
+const double yDistWheels = 50;
+
 // Number to multiply ticks by to get distance in cm
 const double distanceFactor = 0.026943587;
 
@@ -39,6 +50,7 @@ const double motorFactor = 0.52466368;
 // Set these as the coordinates of the initial robot position (in cm)
 double currentX = 0;
 double currentY = yDimension / 2;
+double currentAngle = 0;
 
 void addTickTop() {
   topTicks++;
@@ -64,11 +76,15 @@ void setup() {
   bottomTicks = 0;
   leftTicks = 0;
   rightTicks = 0;
-  
-  pinMode(6, OUTPUT);
-  pinMode(7, OUTPUT);
-  pinMode(8,OUTPUT);
-  pinMode(9,OUTPUT);
+
+  pinMode(topPwm, OUTPUT);
+  pinMode(topGround, OUTPUT);
+  pinMode(bottomPwm, OUTPUT);
+  pinMode(bottomGround, OUTPUT);
+  pinMode(leftPwm, OUTPUT);
+  pinMode(leftGround, OUTPUT);
+  pinMode(rightPwm, OUTPUT);
+  pinMode(rightGround, OUTPUT);
   Serial.begin(9600);
   attachInterrupt(digitalPinToInterrupt(18), addTickTop, RISING);
   attachInterrupt(digitalPinToInterrupt(19), addTickBottom, RISING);
@@ -77,83 +93,67 @@ void setup() {
 }
 
 void loop() {
+  // Move robot to buttons
   moveTo(0, 133.985);
+  // Press the buttons
   hailMother();
   // Move robot to climb position
+  moveTo(38.1, 0);
+  rotate(90.0, 1.0);
+  // Two options: make the programmeres reorient the field or make the code reorient the field
+  moveTo(10, 10);
   climb();
-//  moveForwardBackwards(1024,100);
-//  delay(1000);
-//  moveLeftRight(1024,100);
-//  delay(1000);
-//  moveForwardBackwards(1024,-100);
-//  delay(1000);
-//  moveLeftRight(1024,-100);
-//  delay(1000);
-}
-
-void moveForwardBackwards(int dist, int dir) { //Distance is in mm Direction is positve is forward negative is back. Abs value of direction is speed
-  digitalWrite(7,LOW);
-  digitalWrite(6,LOW);
-   
-  if (dir > 0) {
-    analogWrite(6,abs(dir));
-    digitalWrite(7,LOW);
-     
-  }
-  else {
-    analogWrite(7,abs(dir));
-    digitalWrite(6,LOW);
-    
-  }
-  
-//  while(distanceFB <= dist/3.5);
-//  distanceFB = 0;
-  digitalWrite(7,LOW);
-  digitalWrite(6,LOW);
 }
 
 double getXDistance() {
-  // Initial x position of robot + the 
-  return currentX + ((topTicks + bottomTicks) / 2) * distanceFactor;  
+  return currentX + (((topTicks + bottomTicks) / 2) * distanceFactor) * cos(currentAngle);  
 }
 
+// bodged code that needs fixed
 double getYDistance() {
-  return currentY + ((leftTicks + rightTicks) / 2) * distanceFactor;
-}
-
-double setXPosition() {
-  
-}
-
-double setYPosition() {
-  
+  if (abs(currentAngle) > 0.5) {
+    return currentY + (((leftTicks + rightTicks) / 2) * distanceFactor) * sin(currentAngle);
+  }
+  else {
+    return currentY + (((leftTicks + rightTicks) / 2) * distanceFactor);
+  }
 }
 
 // Position for robot to move to on the coordinate system (in cm). The origin is centered at the robot's center as specified by currentX and currentY.
 void moveTo(double x, double y) {
   double initXDistance = x - getXDistance();
   double initYDistance = y - getYDistance();
-  double xDistanceLeft = initXDistance;
-  double yDistanceLeft = initYDistance;
+  double initDistance = sqrt(exp(x - initXDistance) + exp(y - initYDistance));
+  double initTiltXDist = initDistance * cos(M_PI / 2 - currentAngle);
+  double initTiltXDist = initDistance * sin(M_PI / 2 - currentAngle);
+  double distanceLeft = initDistance;
   
-  if (initXDistance > 0 && initYDistance > 0) {
-    while (xDistanceLeft > 0.5 && yDistanceLeft > 0.5) {
-      // Top
-      moveThingAnalog(7, 8, (xDistanceLeft / initXDistance) * motorFactor);
-      // Bottom
-      moveThingAnalog(9, 10, (xDistanceLeft / initXDistance) * motorFactor);
-      // Left
-      moveThingAnalog(3, 4, yDistanceLeft / initYDistance);
-      // Right
-      moveThingAnalog(5, 6, yDistanceLeft / initYDistance);
-      xDistanceLeft = x - getXDistance();
-      yDistanceLeft = y - getYDistance();
-    }
+  while (xDistanceLeft > 0.5 && yDistanceLeft > 0.5) {
+    moveAnalogThing(topPwm, topGround, (initDistance * cos(M_PI / 2 - currentAngle) / initTiltXDist) * motorFactor);
+    moveAnalogThing(bottomPwm, bottomGround, (initDistance * cos(M_PI / 2 - currentAngle) / initTiltXDist) * motorFactor);
+    moveAnalogThing(leftPwm, leftGround, (initDistance * sin(M_PI / 2 - currentAngle) / initTiltYDist));
+    moveAnalogThing(rightPwm, rightGround, (initDistance * sin(M_PI / 2 - currentAngle) / initTiltYDist));
+    distanceLeft = sqrt(exp(x - initXDistance) + exp(y - initYDistance))
+  }
+}
+
+// Rotate the robot without the use of a gyro. Positive is clockwise. Negative is counterclockwise.
+void rotate(double angle, double velocity) {
+  double initAngleDist = angle;
+  double angleLeft = initAngleDist;
+  resetEncoders();
+  while (angleLeft > 0.5) {
+    moveAnalogThing(topPwm, topGround, -angleLeft / initAngleDist);
+    moveAnalogThing(bottomPwm, bottomGround, angleLeft / initAngleDist);
+    moveAnalogThing(leftPwm, bottomPwm, -angleLeft / initAngleDist);
+    moveAnalogThing(rightPwm, bottomPwm, angleLeft / initAngleDist);
+    angleLeft = angle - ((getXDistance() / xDistWheels + getYDistance() / yDistWheels) / 2);
+    currentAngle = ((getXDistance() / xDistWheels + getYDistance() / yDistWheels) / 2);
   }
 }
 
 // Move a motor at a specified velocity from -1 to 1. Negative velocity indicates backwards movement. The pwmPin should be wired positively and the ground should be wired negatively.
-void moveThingAnalog(int pwmPin, int groundPin, double velocity) {
+void moveAnalogThing(int pwmPin, int groundPin, double velocity) {
   if (velocity > 0) {
     analogWrite(pwmPin, (int)(abs(velocity) * 255));
     digitalWrite(groundPin, LOW);   
@@ -164,7 +164,7 @@ void moveThingAnalog(int pwmPin, int groundPin, double velocity) {
   }
 }
 
-void moveThingDigital(int pwmPin, int groundPin, bool direction) {
+void moveDigitalThing(int pwmPin, int groundPin, bool direction) {
   if (direction) {
     digitalWrite(pwmPin, HIGH);
   }
@@ -173,24 +173,11 @@ void moveThingDigital(int pwmPin, int groundPin, bool direction) {
   }
 }
 
-void moveLeftRight(int dist,int dir) { //Distance is in mm Direction is positve is Left negative is Right. Abs value of direction is speed
-  digitalWrite(9,LOW);
-  digitalWrite(8,LOW);
-   
-  if (dir > 0) {
-    analogWrite(8,abs(dir));
-    digitalWrite(9,LOW);
-     
-  } else {
-    analogWrite(9,abs(dir));
-    digitalWrite(8,LOW);
-    
-  }
-  
-//  while(distanceLR <= dist/1.7);
-//  distanceLR = 0;
-  digitalWrite(9,LOW);
-  digitalWrite(8,LOW);
+void resetEncoders() {
+  topTicks = 0;
+  bottomTicks = 0;
+  leftTicks = 0;
+  rightTicks = 0;
 }
 
 // Make sure it can change direction
