@@ -2,13 +2,16 @@
 #include <digitalWriteFast.h>
 
 // TODO
+// Make the x and y distances for proportional stuff based on encoders (will be more accurate)
+// Ensure the x and y directions are negative when they need to be
+// Add velocity to rotate function
 // Test code
 // Organize/document code
 
 //Pin 2 is FrontBack INTerrupt from encoders
 //Pin 3 is LeftRight Interrupt from encoders
 
-// Assign motors to pins
+// Assign pins
 #define topPwm 7
 #define topGround 8
 #define bottomPwm 9
@@ -18,6 +21,7 @@
 #define rightPwm 5
 #define rightGround 6
 
+// Robot wheel names
 //    ------| TOP |------
 //   |                   |
 //   -                   -
@@ -25,6 +29,7 @@
 //   -                   -
 //   |                   |
 //   -----| BOTTOM |------
+
 
 // Ticks since last measurement
 volatile int topTicks = 0;
@@ -36,10 +41,9 @@ volatile int rightTicks = 0;
 const double yDimension = 42.545;
 const double xDimension = 60.80125;
 
-// FIX THESE
 // Distance between wheels (in cm)
-const double xDistWheels = 100;
-const double yDistWheels = 50;
+const double xDistWheels = 58.5;
+const double yDistWheels = 33.5;
 
 // Number to multiply ticks by to get distance in cm
 const double distanceFactor = 0.026943587;
@@ -99,48 +103,101 @@ void loop() {
   hailMother();
   // Move robot to climb position
   moveTo(38.1, 0);
-  rotate(90.0, 1.0);
-  // Two options: make the programmeres reorient the field or make the code reorient the field
-  moveTo(10, 10);
+  rotate(M_PI / 2, 1.0);
+  moveTo(59.3725, 182.88);
   climb();
 }
 
+// Returns the current x distance from the robot's starting position in cm.
 double getXDistance() {
-  return currentX + (((topTicks + bottomTicks) / 2) * distanceFactor) * cos(currentAngle);  
+  return currentX + getXTicks() * distanceFactor;
 }
 
-// bodged code that needs fixed
 double getYDistance() {
-  if (abs(currentAngle) > 0.5) {
-    return currentY + (((leftTicks + rightTicks) / 2) * distanceFactor) * sin(currentAngle);
-  }
-  else {
-    return currentY + (((leftTicks + rightTicks) / 2) * distanceFactor);
-  }
+  return currentY + (getYTicks() * distanceFactor);
 }
+
+// Get the magnitude of the robot's direction
+double getCTicks() {
+  return sqrt(exp(getXTicks()) + exp(getYTicks()));
+}
+
+double getXTicks() {
+  return (topTicks + bottomTicks) / 2;
+}
+
+double getYTicks() {
+  return (leftTicks + rightTicks) / 2;
+}
+
+// double getPhiAngle() {
+//   return asin(getYTicks() / getCTicks()) + (M_PI - asin(getXTicks() / getCTicks())) / 2;
+// }
 
 // Position for robot to move to on the coordinate system (in cm). The origin is centered at the robot's center as specified by currentX and currentY.
 void moveTo(double x, double y) {
-  double initXDistance = x - getXDistance();
-  double initYDistance = y - getYDistance();
-  double initDistance = sqrt(exp(x - initXDistance) + exp(y - initYDistance));
-  double initTiltXDist = initDistance * cos(M_PI / 2 - currentAngle);
-  double initTiltXDist = initDistance * sin(M_PI / 2 - currentAngle);
-  double distanceLeft = initDistance;
-  
-  while (xDistanceLeft > 0.5 && yDistanceLeft > 0.5) {
-    moveAnalogThing(topPwm, topGround, (initDistance * cos(M_PI / 2 - currentAngle) / initTiltXDist) * motorFactor);
-    moveAnalogThing(bottomPwm, bottomGround, (initDistance * cos(M_PI / 2 - currentAngle) / initTiltXDist) * motorFactor);
-    moveAnalogThing(leftPwm, leftGround, (initDistance * sin(M_PI / 2 - currentAngle) / initTiltYDist));
-    moveAnalogThing(rightPwm, rightGround, (initDistance * sin(M_PI / 2 - currentAngle) / initTiltYDist));
-    distanceLeft = sqrt(exp(x - initXDistance) + exp(y - initYDistance))
+  // Directions for x and y
+  int xDirection = 1;
+  int yDirection = 1;
+  // Initial x distance in cm
+  double xInitDist = x - getXDistance();
+  Serial.print("xInitDist = ");
+  Serial.println(xInitDist);
+  // Initial y distance in cm
+  double yInitDist = y - getYDistance();
+  Serial.print("yInitDist = ");
+  Serial.print(yInitDist);
+  // Initial distance (c distance) in cm
+  double initDist = sqrt(exp(xInitDist) + exp(yInitDist));
+  Serial.print("initDist = ");
+  Serial.println(initDist);
+  // The average angle phi as calculated using the robot's current angle
+  double phi = (asin(yInitDist / initDist) + acos(xInitDist / initDist) - (2 * currentAngle)) / 2;
+  Serial.print("phi = ");
+  Serial.println(phi);
+  // Initial x encoder distance left
+  double initXTickDist = initDist * cos(phi) / distanceFactor;
+  Serial.print("initXTickDist = ");
+  Serial.println(initXTickDist);
+  // Initial y encoder distance left
+  double initYTickDist = initDist * sin(phi) / distanceFactor;
+  Serial.print("initYTickDist = ");
+  Serial.println(initYTickDist);
+  double xTicksLeft = initXTickDist;
+  double yTicksLeft = initYTickDist;
+
+  // Make sure these are ok despite possible slipping
+  if (xInitDist < 0) {
+    xDirection = -1;
+  }
+  if (yInitDist < 0) {
+    yDirection = -1;
+  }
+
+  while ((abs(xTicksLeft) + abs(yTicksLeft)) > 1) {
+    moveAnalogThing(topPwm, topGround, xDirection * xTicksLeft / initXTickDist * motorFactor);
+    Serial.print("Top speed: ");
+    Serial.println(xDirection * xTicksLeft / initXTickDist);
+    moveAnalogThing(bottomPwm, bottomGround, xDirection * xTicksLeft / initXTickDist * motorFactor);
+    Serial.print("Bottom speed: ");
+    Serial.println(xDirection * xTicksLeft / initXTickDist);
+    moveAnalogThing(leftPwm, leftGround, yDirection * yTicksLeft / initYTickDist);
+    Serial.print("Left speed: ");
+    Serial.println(yDirection * yTicksLeft / initYTickDist);
+    moveAnalogThing(rightPwm, rightGround, yDirection * yTicksLeft / initYTickDist);
+    Serial.print("Right speed: ");
+    Serial.println(yDirection * yTicksLeft / initYTickDist);
+    xTicksLeft = initXTickDist - getXTicks();
+    yTicksLeft = initYTickDist - getYTicks();
   }
 }
 
-// Rotate the robot without the use of a gyro. Positive is clockwise. Negative is counterclockwise.
+// Rotate the robot without the use of a gyro. Positive is clockwise. Negative is counterclockwise. Angle in radians.
 void rotate(double angle, double velocity) {
   double initAngleDist = angle;
   double angleLeft = initAngleDist;
+  currentX = getXDistance();
+  currentY = getYDistance();
   resetEncoders();
   while (angleLeft > 0.5) {
     moveAnalogThing(topPwm, topGround, -angleLeft / initAngleDist);
@@ -237,16 +294,3 @@ void hailMother() {
 void climb() {
 //  digitalWrite(HIGH);
 }
-
-// Modify and test this
-//void HandleLeftMotorInterruptA() {
-//  // Test transition; since the interrupt will only fire on 'rising' we don't need to read pin A
-//  _LeftEncoderBSet = digitalReadFast(c_LeftEncoderPinB);   // read the input pin
-// 
-//  // and adjust counter + if A leads B
-//  #ifdef LeftEncoderIsReversed
-//    _LeftEncoderTicks -= _LeftEncoderBSet ? -1 : +1;
-//  #else
-//    _LeftEncoderTicks += _LeftEncoderBSet ? -1 : +1;
-//  #endif
-//}
