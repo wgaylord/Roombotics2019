@@ -1,5 +1,5 @@
+#include <Servo.h>
 #include <Arduino.h>;
-#include <digitalWriteFast.h>
 
 // TODO
 // Make the x and y distances for proportional stuff based on encoders (will be more accurate)
@@ -9,14 +9,22 @@
 // Organize/document code
 
 // Assign pins
-#define topPwm 7
-#define topGround 8
-#define bottomPwm 9
-#define bottomGround 10
+#define EStopPin 2
 #define leftPwm 3
 #define leftGround 4
 #define rightPwm 5
 #define rightGround 6
+#define topPwm 7
+#define topGround 8
+#define bottomPwm 9
+#define bottomGround 10
+#define moverPin 11
+#define pusherPin 12
+#define topInterrupt 18
+#define bottomInterrupt 19
+#define leftInterrupt 20
+#define rightInterrupt 21
+#define limitPin 22
 
 // Robot wheel names
 
@@ -54,6 +62,9 @@ double currentX = 0;
 double currentY = yDimension / 2;
 double currentAngle = 0;
 
+// Define the servos. Servo mover in continuous mode, servo pusher in servo mode.
+Servo mover, pusher;
+
 void addTickTop() {
   topTicks++;
 }
@@ -87,12 +98,8 @@ void ESTOP(){
 
 // Interrupt pins: 2, 3, 18, 19, 20, 21
 void setup() {
-  // Reset the gyro
   // Reset the encoders
-  topTicks = 0;
-  bottomTicks = 0;
-  leftTicks = 0;
-  rightTicks = 0;
+  resetEncoders();
 
   pinMode(topPwm, OUTPUT);
   pinMode(topGround, OUTPUT);
@@ -102,20 +109,25 @@ void setup() {
   pinMode(leftGround, OUTPUT);
   pinMode(rightPwm, OUTPUT);
   pinMode(rightGround, OUTPUT);
+  mover.attach(moverPin);
+  pusher.attach(pusherPin);
   Serial.begin(9600);
-  attachInterrupt(digitalPinToInterrupt(2), ESTOP, RISING);
-  attachInterrupt(digitalPinToInterrupt(18), addTickTop, RISING);
-  attachInterrupt(digitalPinToInterrupt(19), addTickBottom, RISING);
-  attachInterrupt(digitalPinToInterrupt(20), addTickLeft, RISING);
-  attachInterrupt(digitalPinToInterrupt(21), addTickRight, RISING);
-
+  attachInterrupt(digitalPinToInterrupt(EStopPin), ESTOP, RISING);
+  attachInterrupt(digitalPinToInterrupt(topInterrupt), addTickTop, RISING);
+  attachInterrupt(digitalPinToInterrupt(bottomInterrupt), addTickBottom, RISING);
+  attachInterrupt(digitalPinToInterrupt(leftInterrupt), addTickLeft, RISING);
+  attachInterrupt(digitalPinToInterrupt(rightInterrupt), addTickRight, RISING);
 }
 
 void loop() {
   // Move robot to buttons
   moveTo(0, 133.985);
-  // Press the buttons
-  hailMother();
+  // Press the buttons (can't remember how many times we can do this)
+  hitLights();
+  delay(5000);
+  hitLights();
+  delay(5000);
+  hitLights();
   // Move robot to climb position
   moveTo(38.1, 0);
   rotate(M_PI / 2, 1.0);
@@ -132,11 +144,6 @@ double getYDistance() {
   return currentY + (getYTicks() * distanceFactor);
 }
 
-// Get the magnitude of the robot's direction
-double getCTicks() {
-  return sqrt(exp(getXTicks()) + exp(getYTicks()));
-}
-
 double getXTicks() {
   return (topTicks + bottomTicks) / 2;
 }
@@ -144,10 +151,6 @@ double getXTicks() {
 double getYTicks() {
   return (leftTicks + rightTicks) / 2;
 }
-
-// double getPhiAngle() {
-//   return asin(getYTicks() / getCTicks()) + (M_PI - asin(getXTicks() / getCTicks())) / 2;
-// }
 
 // Position for robot to move to on the coordinate system (in cm). The origin is centered at the robot's center as specified by currentX and currentY.
 void moveTo(double x, double y) {
@@ -252,30 +255,8 @@ void resetEncoders() {
   rightTicks = 0;
 }
 
-// Make sure it can change direction -- This is a servo only needs 1 pin to control 
-void findLight(boolean pin, boolean ground) {
-  digitalWrite(11, pin);
-  digitalWrite(12, ground);
-  while (!isLit()) {
-    if (switchPressed()) {
-      ground = switchValue(ground);
-      pin = switchValue(pin);
-    }
-    findLight(pin, ground);
-  }
-}
-
-boolean switchValue(boolean pin) {
-  if (pin == 1) {
-    return 0;
-  }
-  else {
-    return 1;
-  }
-}
-
 boolean switchPressed() {
-  if (digitalRead(14)) {
+  if (digitalRead(limitPin)) {
     return true;
   }
   else {
@@ -283,11 +264,22 @@ boolean switchPressed() {
   }
 }
 
-//Use servo library as analogWrite can't control servos? (Two angles one for in one for out?)
-void hitLight() {
-  analogWrite(13, 255);
-  delay(1000);
-  analogWrite(13, 0);
+void hitLights() {
+  for (int lightsHit = 0; lightsHit < 6; lightsHit++) {
+    while (!isLit()) {
+      // Move servo one way
+      mover.write(0);
+    }
+    // Push the button
+    pusher.write(0);
+    pusher.write(180);
+    while (!switchPressed()) {
+      // Move servo the other way
+      mover.write(180);
+    }
+  }
+  // Stop servo
+  mover.write(90);
 }
 
 bool isLit() {
@@ -298,15 +290,5 @@ bool isLit() {
   return isLit;
 }
 
-void hailMother() {
-  int hit = 0;
-  while (hit < 6) {
-    findLight(HIGH, LOW);
-    hitLight();
-    hit++;
-  }
-}
-
 void climb() {
-//  digitalWrite(HIGH);
 }
