@@ -5,11 +5,15 @@ BluetoothSerial SerialBT;
 boolean waiting = false;
 hw_timer_t *timer = NULL; //Setup watchdog for if computer stops talking for 500ms
 
+
+//Pin 4 on ESP is the ESTOP
 void IRAM_ATTR resetModule() {
-  digitalWrite(0,HIGH);
+  digitalWrite(4,HIGH);
   
 }
 
+
+//Uncomment Timer code for competition
 void setup() {
   Serial.begin(9600);
   SerialBT.begin("RoomBotics-2019-WG"); //Bluetooth device name
@@ -28,3 +32,16 @@ void loop() {
   delay(20);
 }
 
+// Change to loop for actual competition.  Pin 15 on ESP is the start signal. Pin 2 on ESP is the ready to lift signal.
+void loop1() {
+ if (SerialBT.available()) {
+   int data = SerialBT.read();
+   if(data == 'S'){
+     digitalWrite(15,HIGH);
+   }
+   if(data == 'L'){
+     digitalWrite(2,HIGH)
+   }
+   SerialBT.write('0');
+  }
+}

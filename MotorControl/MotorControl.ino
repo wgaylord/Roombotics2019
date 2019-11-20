@@ -25,6 +25,10 @@
 #define leftInterrupt 20
 #define rightInterrupt 21
 #define limitPin 22
+#define startPin 23
+#define climbReadyPin 24
+#define climbPin 25
+#define climbGround 26
 
 // Robot wheel names
 
@@ -84,15 +88,17 @@ void addTickRight() {
 //TODO - Add stopping of the mvoing  button pusher.
 //ESTOP - Emergancy Stop. Stops the whole bot then forces into a do nothing loop. Must power cycle to restart.
 void ESTOP(){
-  digitalWrite(topPwm);
-  digitalWrite(topGround);
-  digitalWrite(bottomPwm);
-  digitalWrite(bottomGround);
-  digitalWrite(leftPwm);
-  digitalWrite(leftGround);
-  digitalWrite(rightPwm);
-  digitalWrite(rightGround);
-  
+  digitalWrite(topPwm,LOW);
+  digitalWrite(topGround,LOW);
+  digitalWrite(bottomPwm,LOW);
+  digitalWrite(bottomGround,LOW);
+  digitalWrite(leftPwm,LOW);
+  digitalWrite(leftGround,LOW);
+  digitalWrite(rightPwm,LOW);
+  digitalWrite(rightGround,LOW);
+  mover.write(180);
+  digitalWrite(climbPin,LOW);
+  digitalWrite(climbGround,LOW);
   while(true){};
 }
 
@@ -117,22 +123,26 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(bottomInterrupt), addTickBottom, RISING);
   attachInterrupt(digitalPinToInterrupt(leftInterrupt), addTickLeft, RISING);
   attachInterrupt(digitalPinToInterrupt(rightInterrupt), addTickRight, RISING);
+  waitForStart();
 }
 
 void loop() {
   // Move robot to buttons
   moveTo(0, 133.985);
-  // Press the buttons (can't remember how many times we can do this)
+  // Press the buttons (can't remember how many times we can do this)  (first time is 20 then 10 then 5 then only 1)
   hitLights();
-  delay(5000);
+  delay(6000); //Give one extra second just incase.
   hitLights();
-  delay(5000);
+  delay(6000);
   hitLights();
   // Move robot to climb position
   moveTo(38.1, 0);
   rotate(M_PI / 2, 1.0);
+  //Climb
+  extendLifter();
+  waitForClimb(); //Wait till its time to try and climb. Can't touch bar at all till only 30 seconds left. Signal from ESP.
   moveTo(59.3725, 182.88);
-  climb();
+  contractLifter();
 }
 
 // Returns the current x distance from the robot's starting position in cm.
@@ -268,11 +278,12 @@ void hitLights() {
   for (int lightsHit = 0; lightsHit < 6; lightsHit++) {
     while (!isLit()) {
       // Move servo one way
-      mover.write(0);
+      mover.write(0); //May want to move slower
     }
     // Push the button
+    mover.write(90); // Stop mover then press the button.
     pusher.write(0);
-    pusher.write(180);
+    pusher.write(180); //Will have to adjust these for actual angles needed
     while (!switchPressed()) {
       // Move servo the other way
       mover.write(180);
@@ -290,5 +301,23 @@ bool isLit() {
   return isLit;
 }
 
-void climb() {
+void extendLifter(){
+  digitalWrite(climbPin,HIGH);
+  digitalWrite(climbGround,LOW);
 }
+
+void contractLifter(){
+  digitalWrite(climbPin,LOW);
+  digitalWrite(climbGround,HIGH);
+}
+
+//Wait until start of match
+void waitForStart(){
+  while(!digitalRead(startPin)){} 
+}
+
+//Wait for 30 seconds left before even trying to climb. 
+void waitForClimb(){
+  while(!digitalRead(climbReadyPin)){} 
+}
+
