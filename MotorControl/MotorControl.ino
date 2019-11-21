@@ -9,6 +9,7 @@
 // Organize/document code
 
 // Assign pins
+#define communicationPin 1
 #define EStopPin 2
 #define leftPwm 3
 #define leftGround 4
@@ -55,8 +56,11 @@ const double xDimension = 60.80125;
 const double xDistWheels = 58.5;
 const double yDistWheels = 33.5;
 
-// Number to multiply ticks by to get distance in cm
-const double distanceFactor = 0.026943587;
+// Number to multiply left/right wheel ticks by to get distance in cm
+const double yDistanceFactor = 0.026943587;
+
+// Number to multiply top/bottom wheel ticks by to get distance in cm
+const double xDistanceFactor = 0.50982475;
 
 // Factor to get constant motor power for all motors
 const double motorFactor = 0.52466368;
@@ -147,11 +151,11 @@ void loop() {
 
 // Returns the current x distance from the robot's starting position in cm.
 double getXDistance() {
-  return currentX + getXTicks() * distanceFactor;
+  return currentX + getXTicks() * xDistanceFactor;
 }
 
 double getYDistance() {
-  return currentY + (getYTicks() * distanceFactor);
+  return currentY + (getYTicks() * yDistanceFactor);
 }
 
 double getXTicks() {
@@ -184,11 +188,11 @@ void moveTo(double x, double y) {
   Serial.print("phi = ");
   Serial.println(phi);
   // Initial x encoder distance left
-  double initXTickDist = initDist * cos(phi) / distanceFactor;
+  double initXTickDist = initDist * cos(phi) / xDistanceFactor;
   Serial.print("initXTickDist = ");
   Serial.println(initXTickDist);
   // Initial y encoder distance left
-  double initYTickDist = initDist * sin(phi) / distanceFactor;
+  double initYTickDist = initDist * sin(phi) / yDistanceFactor;
   Serial.print("initYTickDist = ");
   Serial.println(initYTickDist);
   double xTicksLeft = initXTickDist;
@@ -215,6 +219,7 @@ void moveTo(double x, double y) {
     moveAnalogThing(rightPwm, rightGround, yDirection * yTicksLeft / initYTickDist);
     Serial.print("Right speed: ");
     Serial.println(yDirection * yTicksLeft / initYTickDist);
+    // Reset encoders at beginning of method?
     xTicksLeft = initXTickDist - getXTicks();
     yTicksLeft = initYTickDist - getYTicks();
   }
@@ -237,14 +242,26 @@ void rotate(double angle, double velocity) {
   }
 }
 
+// Manually move the robot with a specific speed and angle. Speed is from -1 to 1 (negative indicates opposite direction). Angle is in radians.
+void move(double speed, double angle) {
+  double xSpeed = speed * cos(angle);
+  double ySpeed = speed * sin(angle);
+  
+  moveAnalogThing(topPwm, topGround, xSpeed * motorFactor);
+  moveAnalogThing(bottomPwm, bottomGround, xSpeed * motorFactor);
+  moveAnalogThing(leftPwm, leftGround, ySpeed);
+  moveAnalogThing(rightPwm, rightGround, ySpeed);
+}
+
 // Move a motor at a specified velocity from -1 to 1. Negative velocity indicates backwards movement. The pwmPin should be wired positively and the ground should be wired negatively.
 void moveAnalogThing(int pwmPin, int groundPin, double velocity) {
+  int speed = (int)(abs(velocity));
   if (velocity > 0) {
-    analogWrite(pwmPin, (int)(abs(velocity) * 255));
+    analogWrite(pwmPin, speed * 255);
     digitalWrite(groundPin, LOW);   
   }
   else if (velocity < 0) {
-    analogWrite(groundPin, (int)(abs(velocity) * 255));
+    analogWrite(groundPin, speed * 255);
     digitalWrite(pwmPin, LOW);
   }
 }
