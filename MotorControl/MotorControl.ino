@@ -142,12 +142,15 @@ void loop() {
   hitLights();
   // Move robot to climb position
  // moveTo(38.1, 0);
-  dumbMove(38.1,0);
-  rotate(M_PI / 2, 1.0);
+  dumbMove(38.1,0); //Move sidways
+  dumbRotate(); //Rotate
+  dumbMove(0,0); //Move to final location before move and climb
+  //rotate(M_PI / 2, 1.0);
   //Climb
   extendLifter();
   waitForClimb(); //Wait till its time to try and climb. Can't touch bar at all till only 30 seconds left. Signal from ESP.
-  moveTo(59.3725, 182.88);
+  dumbMove(0,0);
+  //moveTo(59.3725, 182.88);
   contractLifter();
 }
 
