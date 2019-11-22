@@ -319,13 +319,15 @@ void move(double speed, double angle) {
 
 // Move a motor at a specified velocity from -1 to 1. Negative velocity indicates backwards movement. The pwmPin should be wired positively and the ground should be wired negatively.
 void moveAnalogThing(int pwmPin, int groundPin, double velocity) {
-  int speed = (int)(abs(velocity));
-  if (velocity > 0) {
-    analogWrite(pwmPin, speed * 255);
+  double speed = (abs(velocity));
+  Serial.print("Speed: ");
+  Serial.println(speed);
+  if (velocity > 0.0) {
+    analogWrite(pwmPin, (int)(speed * 255));
     digitalWrite(groundPin, LOW);   
   }
-  else if (velocity < 0) {
-    analogWrite(groundPin, speed * 255);
+  else if (velocity < 0.0) {
+    analogWrite(groundPin, (int)(speed * 255));
     digitalWrite(pwmPin, LOW);
   }
 }
