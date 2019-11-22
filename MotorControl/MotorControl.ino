@@ -232,6 +232,7 @@ void moveTo(double x, double y) {
 
 //Measured in cm
 void dumbMove(double x,double y){
+  resetEncoders();
     y = y*10;
     x = x*10
     if(y > 0){
@@ -245,12 +246,12 @@ void dumbMove(double x,double y){
     analogWrite(rightGround, 180);
     digitalWrite(rightPwm, LOW);
     }
-    while(leftTicks <= y/3.5){}
+    while(leftTicks <= abs(y)/3.5){}
     digitalWrite(leftPwm,LOW);
     digitalWrite(rightPwm,LOW);
     digitalWrite(leftGround,LOW);
     digitalWrite(rightGround,LOW);
-        if(y > 0){
+        if(x > 0){
       analogWrite(topPwm, 255);
     digitalWrite(topGround, LOW); 
     analogWrite(bottomPwm, 255);
@@ -261,13 +262,13 @@ void dumbMove(double x,double y){
     analogWrite(bottomGround, 255);
     digitalWrite(bottomPwm, LOW);
     }
-    while(topTicks <=x/1.7){}
+    while(topTicks <=abs(x)/1.7){}
     digitalWrite(topPwm,LOW);
     digitalWrite(bottomPwm,LOW);
     digitalWrite(topGround,LOW);
     digitalWrite(bottomGround,LOW);
     
-    resetEncoders();
+   
 }
 
 
@@ -286,6 +287,23 @@ void rotate(double angle, double velocity) {
     angleLeft = angle - ((getXDistance() / xDistWheels + getYDistance() / yDistWheels) / 2);
     currentAngle = ((getXDistance() / xDistWheels + getYDistance() / yDistWheels) / 2);
   }
+}
+
+void dumbRotate(){ //Rotates 90 degs Clock Wise - hopefully need to do quick test as soon as I get there. - William
+ //distance = 47.7532 cm
+    resetEncoders();
+    analogWrite(3, 180);
+    digitalWrite(4, LOW); 
+    analogWrite(6, 180);
+    digitalWrite(5, LOW); 
+    
+    while(leftTicks <= 477.532/3.5){}
+    digitalWrite(leftPwm,LOW);
+    digitalWrite(rightPwm,LOW);
+    digitalWrite(leftGround,LOW);
+    digitalWrite(rightGround,LOW);
+  
+
 }
 
 // Manually move the robot with a specific speed and angle. Speed is from -1 to 1 (negative indicates opposite direction). Angle is in radians.
