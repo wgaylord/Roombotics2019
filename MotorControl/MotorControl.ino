@@ -1,7 +1,7 @@
 #include <Servo.h>
 #include <Arduino.h>;
 
-// TODO
+// TODO   
 // Make the x and y distances for proportional stuff based on encoders (will be more accurate)
 // Ensure the x and y directions are negative when they need to be
 // Add velocity to rotate function
@@ -132,7 +132,8 @@ void setup() {
 
 void loop() {
   // Move robot to buttons
-  moveTo(0, 133.985);
+  //moveTo(0, 133.985);
+    dumbMove(0,133.985*10);
   // Press the buttons (can't remember how many times we can do this)  (first time is 20 then 10 then 5 then only 1)
   hitLights();
   delay(6000); //Give one extra second just incase.
@@ -140,7 +141,8 @@ void loop() {
   delay(6000);
   hitLights();
   // Move robot to climb position
-  moveTo(38.1, 0);
+ // moveTo(38.1, 0);
+  dumbMove(38.1*10,0);
   rotate(M_PI / 2, 1.0);
   //Climb
   extendLifter();
@@ -225,6 +227,45 @@ void moveTo(double x, double y) {
   }
 }
 
+
+void dumbMove(double x,double y){
+    if(y > 0){
+    analogWrite(3, 180);
+    digitalWrite(4, LOW); 
+    analogWrite(5, 180);
+    digitalWrite(6, LOW); 
+    }else{
+    analogWrite(leftGround, 180);
+    digitalWrite(leftPwm, LOW);
+    analogWrite(rightGround, 180);
+    digitalWrite(rightPwm, LOW);
+    }
+    while(leftTicks <= y/3.5){}
+    digitalWrite(leftPwm,LOW);
+    digitalWrite(rightPwm,LOW);
+    digitalWrite(leftGround,LOW);
+    digitalWrite(rightGround,LOW);
+        if(y > 0){
+      analogWrite(topPwm, 255);
+    digitalWrite(topGround, LOW); 
+    analogWrite(bottomPwm, 255);
+    digitalWrite(bottomGround, LOW); 
+    }else{
+       analogWrite(topGround, 255);
+    digitalWrite(topPwm, LOW);
+    analogWrite(bottomGround, 255);
+    digitalWrite(bottomPwm, LOW);
+    }
+    while(topTicks <=x/1.7){}
+    digitalWrite(topPwm,LOW);
+    digitalWrite(bottomPwm,LOW);
+    digitalWrite(topGround,LOW);
+    digitalWrite(bottomGround,LOW);
+    
+    resetEncoders();
+}
+
+
 // Rotate the robot without the use of a gyro. Positive is clockwise. Negative is counterclockwise. Angle in radians.
 void rotate(double angle, double velocity) {
   double initAngleDist = angle;
@@ -292,18 +333,22 @@ boolean switchPressed() {
 }
 
 void hitLights() {
+  Serial.println(analogRead(0));
   for (int lightsHit = 0; lightsHit < 6; lightsHit++) {
     while (!isLit()) {
       // Move servo one way
-      mover.write(0); //May want to move slower
+      Serial.print(isLit());
+      mover.write(180); //May want to move slower
     }
     // Push the button
+    
     mover.write(90); // Stop mover then press the button.
-    pusher.write(0);
-    pusher.write(180); //Will have to adjust these for actual angles needed
+    pusher.write(120);
+    delay(500);
+    pusher.write(90); //Will have to adjust these for actual angles needed
     while (!switchPressed()) {
       // Move servo the other way
-      mover.write(180);
+      mover.write(0);
     }
   }
   // Stop servo
