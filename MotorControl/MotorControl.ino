@@ -133,7 +133,7 @@ void setup() {
 void loop() {
   // Move robot to buttons
   //moveTo(0, 133.985);
-    dumbMove(0,133.985*10);
+    dumbMove(0,133.985);
   // Press the buttons (can't remember how many times we can do this)  (first time is 20 then 10 then 5 then only 1)
   hitLights();
   delay(6000); //Give one extra second just incase.
@@ -142,7 +142,7 @@ void loop() {
   hitLights();
   // Move robot to climb position
  // moveTo(38.1, 0);
-  dumbMove(38.1*10,0);
+  dumbMove(38.1,0);
   rotate(M_PI / 2, 1.0);
   //Climb
   extendLifter();
@@ -227,8 +227,10 @@ void moveTo(double x, double y) {
   }
 }
 
-
+//Measured in cm
 void dumbMove(double x,double y){
+    y = y*10;
+    x = x*10
     if(y > 0){
     analogWrite(3, 180);
     digitalWrite(4, LOW); 
@@ -343,9 +345,9 @@ void hitLights() {
     // Push the button
     
     mover.write(90); // Stop mover then press the button.
-    pusher.write(120);
+    pusher.write(120); // Pushes out to correct angle
     delay(500);
-    pusher.write(90); //Will have to adjust these for actual angles needed
+    pusher.write(90); //Pulls it back in.
     while (!switchPressed()) {
       // Move servo the other way
       mover.write(0);
@@ -357,7 +359,7 @@ void hitLights() {
 
 bool isLit() {
   bool isLit = false;
-  if (analogRead(0) > 100) {
+  if (analogRead(0) > 100) { //May have to adjust this.
     isLit = true;
   }
   return isLit;
